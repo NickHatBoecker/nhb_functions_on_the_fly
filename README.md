@@ -1,4 +1,4 @@
-# Functions On The Fly
+# NHB Functions On The Fly
 
 ![Plugin Showcase](https://raw.githubusercontent.com/NickHatBoecker/nhb_functions_on_the_fly/refs/heads/main/assets/create_function_showcase.gif)
 
