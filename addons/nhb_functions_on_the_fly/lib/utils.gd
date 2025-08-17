@@ -26,9 +26,7 @@ func is_in_comment(code_edit: CodeEdit, selected_text: String) -> bool:
 ## - and text is not a comment line
 ##
 ## @param `text` contains the whole line of code.
-func should_show_create_variable(code_edit: CodeEdit, text: String, variable_name_regex: String) -> bool:
-    var script_text = code_edit.text
-
+func should_show_create_variable(code_edit: CodeEdit, text: String, variable_name_regex: String, settings: EditorSettings = null) -> bool:
     ## Check if valid variable name
     var regex = RegEx.new()
     regex.compile(variable_name_regex)
@@ -36,6 +34,9 @@ func should_show_create_variable(code_edit: CodeEdit, text: String, variable_nam
         return false
 
     if is_in_comment(code_edit, text):
+        return false
+
+    if !is_global_variable(text, settings):
         return false
 
     return true
@@ -85,6 +86,9 @@ func get_indentation_character(settings: EditorSettings = null) -> String:
 func create_get_set_variable(variable_name: String, code_edit: CodeEdit, variable_return_type_regex: String, settings: EditorSettings = null) -> void:
     var current_line : int = code_edit.get_caret_line()
     var line_text : String = code_edit.get_line(current_line)
+
+    if !is_global_variable(line_text): return
+
     var end_column : int = line_text.length()
     var indentation_character: String = get_indentation_character(settings)
 
@@ -313,3 +317,16 @@ func get_function_return_type(function_name: String, code_edit: CodeEdit):
         return "void"
 
     return ""
+
+
+## Lines with global variables do not start with whitespace.
+func is_global_variable(text: String, settings: EditorSettings = null) -> bool:
+    var indentation_character: String = get_indentation_character(settings)
+
+    var regex = RegEx.new()
+    regex.compile("^\\s")
+
+    if not regex.search(text):
+        return true
+
+    return false
