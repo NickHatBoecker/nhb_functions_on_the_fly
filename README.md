@@ -27,3 +27,20 @@
     - Right click > "Create get/set variable"
     - <kbd>Ctrl</kbd> + <kbd>'</kbd>
     - <kbd>⌘ Command</kbd> + <kbd>'</kbd> (Mac)
+
+## Development
+
+1. Clone git repository
+2. Copy `.env.dist` to `.env` and update path to Godot executable
+3. You need `node v20` in order to pass unit tests on commit
+4. Execute `yarn`
+
+Please make sure to write/update unit tests in `test` directory for any new features.
+
+### Unit tests
+
+You can run tests in Godot or via command line.
+
+```bash
+$ yarn test:unit
+```
