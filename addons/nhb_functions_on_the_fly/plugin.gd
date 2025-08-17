@@ -16,10 +16,15 @@ const GET_SET_SHORTCUT: StringName = "get_set_shortcut"
 const DEFAULT_SHORTCUT_FUNCTION = KEY_BRACKETLEFT
 const DEFAULT_SHORTCUT_GET_SET = KEY_APOSTROPHE
 
+## If the current text matches this expression, the function popup menu item will be displayed.
 const FUNCTION_NAME_REGEX = "^[a-zA-Z_][a-zA-Z0-9_]*$"
 
-## Should contain the keyword "var"
+## If the current text matches this expression, the variable popup menu item will be displayed.
+## Must contain the keyword "var".
 const VARIABLE_NAME_REGEX = "var [a-zA-Z_][a-zA-Z0-9_]*"
+
+## This is used to determine if a variable string already has a return type.
+const VARIABLE_RETURN_TYPE_REGEX = VARIABLE_NAME_REGEX + " *(?:: *([a-zA-Z_][a-zA-Z0-9_]*))?"
 
 const CALLBACK_MENU_PRIORITY = 1500
 enum CALLBACK_TYPES { FUNCTION, VARIABLE }
@@ -324,13 +329,32 @@ func _shortcut_input(event: InputEvent) -> void:
         _create_get_set_variable(variable_name, code_edit)
 
 
+func _get_variable_return_type(text: String, default_value: String = "") -> String:
+    var regex = RegEx.new()
+    regex.compile(VARIABLE_RETURN_TYPE_REGEX)
+    var result = regex.search(text)
+    if not result:
+        return default_value
+
+    return result.get_string(1)
+
+
 func _create_get_set_variable(variable_name: String, code_edit: CodeEdit) -> void:
     var current_line : int = code_edit.get_caret_line()
     var line_text : String = code_edit.get_line(current_line)
     var end_column : int = line_text.length()
     var indentation_character: String = _get_indentation_character()
 
-    var code_text: String = " : Variant :\n%sget:\n%sreturn %s\n%sset(value):\n%s%s = value" % [
+    var return_type: String = " : Variant "
+    if not _get_variable_return_type(line_text).is_empty():
+        ## Variable already has a return type.
+        return_type = ""
+    if line_text.contains("="):
+        ## Variable has a value so omit return type.
+        return_type = ""
+
+    var code_text: String = "%s:\n%sget:\n%sreturn %s\n%sset(value):\n%s%s = value" % [
+        return_type,
         indentation_character,
         indentation_character.repeat(2),
         variable_name,
@@ -338,6 +362,7 @@ func _create_get_set_variable(variable_name: String, code_edit: CodeEdit) -> voi
         indentation_character.repeat(2),
         variable_name
     ]
+
     code_edit.deselect()
     code_edit.insert_text(code_text, current_line, end_column)
 
