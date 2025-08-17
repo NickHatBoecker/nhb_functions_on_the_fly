@@ -6,6 +6,7 @@
 ##   - Added shortcuts (configurable in editor settings) u/NickHatBoecker
 
 @tool
+class_name NhbFunctionsOnTheFly
 extends EditorPlugin
 
 ## Editor setting for the function shortcut
@@ -28,8 +29,8 @@ const VARIABLE_RETURN_TYPE_REGEX = VARIABLE_NAME_REGEX + " *(?:: *([a-zA-Z_][a-z
 
 const CALLBACK_MENU_PRIORITY = 1500
 enum CALLBACK_TYPES { FUNCTION, VARIABLE }
-enum INDENTATION_TYPES { TABS, SPACES }
 
+var utils: NhbFunctionsOnTheFlyUtils
 var script_editor: ScriptEditor
 var current_popup: PopupMenu
 
@@ -38,6 +39,7 @@ var get_set_shortcut: Shortcut
 
 
 func _enter_tree():
+    utils = NhbFunctionsOnTheFlyUtils.new()
     script_editor = EditorInterface.get_script_editor()
     script_editor.connect("editor_script_changed", _on_script_changed)
     _setup_current_script()
@@ -104,10 +106,10 @@ func _on_popup_about_to_show():
     if selected_text.is_empty():
         return
 
-    var current_line = _get_current_line_text(code_edit)
+    var current_line = utils.get_current_line_text(code_edit)
 
     ## Because variable regex is more precise, it has to be checked first
-    if _should_show_create_variable(code_edit, current_line):
+    if utils.should_show_create_variable(code_edit, current_line, VARIABLE_NAME_REGEX):
         _create_menu_item(
             "Create get/set variable: " + selected_text,
             selected_text,
@@ -133,22 +135,6 @@ func _create_menu_item(item_text: String, selected_text: String, code_edit: Code
     current_popup.connect("id_pressed", _on_menu_item_pressed.bind(selected_text, code_edit, CALLBACK_MENU_PRIORITY, callback_type))
 
 
-func _get_word_under_cursor(code_edit: CodeEdit) -> String:
-    var caret_line = code_edit.get_caret_line()
-    var caret_column = code_edit.get_caret_column()
-    var line_text = code_edit.get_line(caret_line)
-
-    var start = caret_column
-    while start > 0 and line_text[start - 1].is_subsequence_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"):
-        start -= 1
-
-    var end = caret_column
-    while end < line_text.length() and line_text[end].is_subsequence_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"):
-        end += 1
-
-    return line_text.substr(start, end - start)
-
-
 func _should_show_create_function(code_edit: CodeEdit, text: String) -> bool:
     var script_text = code_edit.text
 
@@ -167,23 +153,7 @@ func _should_show_create_function(code_edit: CodeEdit, text: String) -> bool:
     if _local_variable_exists_in_current_function(code_edit, text):
         return false
 
-    if _is_in_comment(code_edit, text):
-        return false
-
-    return true
-
-
-## `text` contains the whole line of code.
-func _should_show_create_variable(code_edit: CodeEdit, text: String) -> bool:
-    var script_text = code_edit.text
-
-    ## Check if valid variable name
-    var regex = RegEx.new()
-    regex.compile(VARIABLE_NAME_REGEX)
-    if not regex.search(text):
-        return false
-
-    if _is_in_comment(code_edit, text):
+    if utils.is_in_comment(code_edit, text):
         return false
 
     return true
@@ -270,43 +240,13 @@ func _local_variable_exists_in_current_function(code_edit: CodeEdit, var_name: S
     return false
 
 
-func _is_in_comment(code_edit: CodeEdit, selected_text: String) -> bool:
-    var caret_line = code_edit.get_caret_line()
-    var line_text = code_edit.get_line(caret_line)
-    var selection_start = code_edit.get_selection_from_column()
-
-    var comment_pos = line_text.find("#")
-    if comment_pos != -1 and comment_pos < selection_start:
-        return true
-
-    return false
-
-
 func _on_menu_item_pressed(id: int, original_text: String, code_edit: CodeEdit, target_index: int, callback_type: CALLBACK_TYPES) -> void:
     if id != target_index: return
 
     if callback_type == CALLBACK_TYPES.FUNCTION:
-        _create_function(original_text, code_edit)
+        utils.create_function(original_text, code_edit, _get_editor_settings())
     elif callback_type == CALLBACK_TYPES.VARIABLE:
-        _create_get_set_variable(original_text, code_edit)
-
-
-func _create_function(function_name: String, code_edit: CodeEdit):
-    code_edit.deselect()
-
-    var indentation_character: String = _get_indentation_character()
-    var new_function = "\n\nfunc " + function_name + "() -> Variant:\n%sreturn" % indentation_character
-
-    code_edit.text = code_edit.text + new_function
-
-    var line_count = code_edit.get_line_count()
-    var pass_line = line_count - 1
-
-    code_edit.set_caret_line(pass_line)
-    code_edit.set_caret_column(1)
-
-    code_edit.select(pass_line, 1, pass_line, 5)
-    code_edit.text_changed.emit()
+        utils.create_get_set_variable(original_text, code_edit, VARIABLE_RETURN_TYPE_REGEX, _get_editor_settings())
 
 
 ## Process the user defined shortcuts
@@ -318,53 +258,15 @@ func _shortcut_input(event: InputEvent) -> void:
         ## Function
         get_viewport().set_input_as_handled()
         var code_edit: CodeEdit = _get_code_edit()
-        var function_name = _get_word_under_cursor(code_edit)
+        var function_name = utils.get_word_under_cursor(code_edit)
         if _should_show_create_function(code_edit, function_name):
-            _create_function(function_name, code_edit)
+            utils.create_function(function_name, code_edit, _get_editor_settings())
     elif get_set_shortcut.matches_event(event):
         ## Get/set variable
         get_viewport().set_input_as_handled()
         var code_edit: CodeEdit = _get_code_edit()
-        var variable_name = _get_word_under_cursor(code_edit)
-        _create_get_set_variable(variable_name, code_edit)
-
-
-func _get_variable_return_type(text: String, default_value: String = "") -> String:
-    var regex = RegEx.new()
-    regex.compile(VARIABLE_RETURN_TYPE_REGEX)
-    var result = regex.search(text)
-    if not result:
-        return default_value
-
-    return result.get_string(1)
-
-
-func _create_get_set_variable(variable_name: String, code_edit: CodeEdit) -> void:
-    var current_line : int = code_edit.get_caret_line()
-    var line_text : String = code_edit.get_line(current_line)
-    var end_column : int = line_text.length()
-    var indentation_character: String = _get_indentation_character()
-
-    var return_type: String = " : Variant "
-    if not _get_variable_return_type(line_text).is_empty():
-        ## Variable already has a return type.
-        return_type = ""
-    if line_text.contains("="):
-        ## Variable has a value so omit return type.
-        return_type = ""
-
-    var code_text: String = "%s:\n%sget:\n%sreturn %s\n%sset(value):\n%s%s = value" % [
-        return_type,
-        indentation_character,
-        indentation_character.repeat(2),
-        variable_name,
-        indentation_character,
-        indentation_character.repeat(2),
-        variable_name
-    ]
-
-    code_edit.deselect()
-    code_edit.insert_text(code_text, current_line, end_column)
+        var variable_name = utils.get_word_under_cursor(code_edit)
+        utils.create_get_set_variable(variable_name, code_edit, VARIABLE_RETURN_TYPE_REGEX, _get_editor_settings())
 
 
 func _get_editor_settings() -> EditorSettings:
@@ -376,7 +278,7 @@ func _get_editor_settings() -> EditorSettings:
 func _init_shortcuts():
     var editor_settings: EditorSettings = _get_editor_settings()
 
-    if !editor_settings.has_setting(_get_shortcut_path(FUNCTION_SHORTCUT)):
+    if !editor_settings.has_setting(utils.get_shortcut_path(FUNCTION_SHORTCUT)):
         var shortcut: Shortcut = Shortcut.new()
         var event: InputEventKey = InputEventKey.new()
         event.device = -1
@@ -384,9 +286,9 @@ func _init_shortcuts():
         event.keycode = DEFAULT_SHORTCUT_FUNCTION
 
         shortcut.events = [ event ]
-        editor_settings.set_setting(_get_shortcut_path(FUNCTION_SHORTCUT), shortcut)
+        editor_settings.set_setting(utils.get_shortcut_path(FUNCTION_SHORTCUT), shortcut)
 
-    if !editor_settings.has_setting(_get_shortcut_path(GET_SET_SHORTCUT)):
+    if !editor_settings.has_setting(utils.get_shortcut_path(GET_SET_SHORTCUT)):
         var shortcut: Shortcut = Shortcut.new()
         var event: InputEventKey = InputEventKey.new()
         event.device = -1
@@ -394,10 +296,10 @@ func _init_shortcuts():
         event.keycode = DEFAULT_SHORTCUT_GET_SET
 
         shortcut.events = [ event ]
-        editor_settings.set_setting(_get_shortcut_path(GET_SET_SHORTCUT), shortcut)
+        editor_settings.set_setting(utils.get_shortcut_path(GET_SET_SHORTCUT), shortcut)
 
-    function_shortcut = editor_settings.get_setting(_get_shortcut_path(FUNCTION_SHORTCUT))
-    get_set_shortcut = editor_settings.get_setting(_get_shortcut_path(GET_SET_SHORTCUT))
+    function_shortcut = editor_settings.get_setting(utils.get_shortcut_path(FUNCTION_SHORTCUT))
+    get_set_shortcut = editor_settings.get_setting(utils.get_shortcut_path(GET_SET_SHORTCUT))
 
 
 ## This is the editor window, where code lines can be selected.
@@ -405,37 +307,10 @@ func _get_code_edit() -> CodeEdit:
     return get_editor_interface().get_script_editor().get_current_editor().get_base_editor()
 
 
-## Tab or spaces
-func _get_indentation_character() -> String:
-    var settings: EditorSettings = _get_editor_settings()
-
-    var indentation_type = settings.get_setting("text_editor/behavior/indent/type")
-    var indentation_character: String = "\t"
-
-    if indentation_type != INDENTATION_TYPES.TABS:
-        var indentation_size = settings.get_setting("text_editor/behavior/indent/size")
-        indentation_character = " ".repeat(indentation_size)
-
-    return indentation_character
-
-
-func _get_shortcut_path(parameter: String) -> String:
-    var script_path: String = (self.get_script() as GDScript).resource_path
-    var script_path_parts: Array = script_path.split("/")
-    script_path_parts.remove_at(script_path_parts.size() - 1)
-    var addon_path: String = "/".join(script_path_parts)
-
-    return "%s%s" % [addon_path, parameter]
-
-
 func _get_selected_text(_code_edit: CodeEdit) -> String:
     var selected_text = _code_edit.get_selected_text().strip_edges()
 
     if selected_text.is_empty():
-        selected_text = _get_word_under_cursor(_code_edit)
+        selected_text = utils.get_word_under_cursor(_code_edit)
 
     return selected_text
-
-
-func _get_current_line_text(_code_edit: CodeEdit) -> String:
-    return _code_edit.get_line(_code_edit.get_caret_line())

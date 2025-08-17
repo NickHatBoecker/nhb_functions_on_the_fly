@@ -1,0 +1,16 @@
+{
+    "name": "nhb-functions-on-the-fly",
+    "version": "1.0.0",
+    "author": "NickHatBoecker <contact@nickhatboecker.de>",
+    "license": "MIT",
+    "scripts": {
+        "test:unit": "./bin/run-unit-tests.sh",
+        "prepare": "husky"
+    },
+    "devDependencies": {
+        "husky": "^9.1.7"
+    },
+    "engines": {
+        "node": ">=20.0.0 <21.0.0"
+    }
+}
