@@ -63,7 +63,9 @@ func get_shortcut_path(parameter: String) -> String:
     return "res://addons/nhb_functions_on_the_fly/%s" % parameter
 
 
-## Tab or spaces
+## Get accumulated indentation string.
+## Will return "\t" if tabs are used for indentation.
+## Will return " " * indent/size if spaces are used for indentation.
 func get_indentation_character(settings: EditorSettings = null) -> String:
     if !settings:
         ## GUT unit test context
@@ -109,21 +111,71 @@ func create_get_set_variable(variable_name: String, code_edit: CodeEdit, variabl
 
 
 func create_function(function_name: String, code_edit: CodeEdit, settings: EditorSettings = null):
+    var current_line : int = code_edit.get_caret_line()
+    var line_text : String = code_edit.get_line(current_line)
+
     code_edit.deselect()
 
+    var return_type: String = get_function_return_type(function_name, code_edit)
+    var return_type_string: String = " -> %s" % return_type
+    if !return_type:
+        return_type_string = ""
+
+    var return_value: String = get_return_value_by_return_type(return_type)
+    var return_value_string: String = " %s" % str(return_value)
+    if !return_value:
+        return_value_string = ""
+
+    var function_parameters = find_signal_declaration_parameters(code_edit.get_caret_line(), line_text, code_edit)
+
     var indentation_character: String = get_indentation_character(settings)
-    var new_function = "\n\nfunc " + function_name + "() -> Variant:\n%sreturn" % indentation_character
+    var new_function = "\n\nfunc %s(%s)%s:\n%sreturn%s" % [
+        function_name,
+        function_parameters,
+        return_type_string,
+        indentation_character,
+        return_value_string
+    ]
 
     code_edit.text = code_edit.text + new_function
 
-    var line_count = code_edit.get_line_count()
-    var pass_line = line_count - 1
+    var line_with_new_function = code_edit.get_line_count() - 1
+    code_edit.set_caret_line(line_with_new_function)
+    code_edit.set_caret_column(code_edit.get_line(line_with_new_function).length())
 
-    code_edit.set_caret_line(pass_line)
-    code_edit.set_caret_column(1)
-
-    code_edit.select(pass_line, 1, pass_line, 5)
     code_edit.text_changed.emit()
+
+
+## @TODO Is there any easier way to create default value based on return type?
+func get_return_value_by_return_type(return_type: String) -> String:
+    match (return_type):
+        "String":
+            return "\"\""
+        "int":
+            return "0"
+        "float":
+            return "0.0"
+        "bool":
+            return "false"
+        "Color":
+            return "Color.WHITE"
+        "Array":
+            return "[]"
+        "Dictionary":
+            return "{}"
+        "Vector2":
+            return "Vector2.ZERO"
+        "Vector2i":
+            return "Vector2i.ZERO"
+        "Vector3":
+            return "Vector3.ZERO"
+        "Vector3i":
+            return "Vector3i.ZERO"
+        "Vector4":
+            return "Vector4.ZERO"
+        "Vector4i":
+            return "Vector4i.ZERO"
+    return ""
 
 
 func get_word_under_cursor(code_edit: CodeEdit) -> String:
@@ -140,3 +192,113 @@ func get_word_under_cursor(code_edit: CodeEdit) -> String:
         end += 1
 
     return line_text.substr(start, end - start)
+
+
+func trim_char(text: String, char: String) -> String:
+    if text.is_empty() or char.is_empty():
+        return text
+
+    var start := 0
+    var end   := text.length()
+
+    while start < end and text.substr(start, char.length()) == char:
+        start += char.length()
+
+    while end > start and text.substr(end - char.length(), char.length()) == char:
+        end -= char.length()
+
+    return text.substr(start, end - start)
+
+
+## Find declaration of given line_text variable.
+## @example line_text - my_text = _get_my_text()
+func find_variable_declaration_return_type(line_index: int, line_text : String, code_edit: CodeEdit) -> String:
+    var parts = line_text.split("=")
+    if parts.size() < 2:
+        parts = line_text.split(".")
+        if parts.size() < 2:
+            return ""
+
+    var left_part = parts[0].strip_edges()
+
+    var name_token = left_part.split(":")[0].strip_edges()
+    name_token = name_token.split(".")[0].strip_edges()
+    if name_token == "":
+        return ""
+
+    ## Check for variable declaration in current line and all lines above.
+    for i in range(line_index, -1, -1):
+        var prev_line = code_edit.get_line(i).strip_edges()
+
+        if !prev_line.begins_with("var") and !prev_line.begins_with("@onready") and !prev_line.begins_with("@export"):
+            continue
+
+        if name_token not in prev_line:
+            continue
+
+        var rest = prev_line.split(name_token)[1].strip_edges()
+        if rest.begins_with(":"):
+            var type_part = rest.split("=")
+            type_part = type_part[0].split(":")[1]
+            return type_part.strip_edges()
+
+    return ""
+
+
+func find_signal_declaration_parameters(line_index: int, line_text : String, code_edit: CodeEdit) -> String:
+    var object_name: String = find_variable_declaration_return_type(line_index, line_text, code_edit)
+    if !object_name: return ""
+
+    var instance = ClassDB.instantiate(object_name)
+    if !instance or !instance.has_method("get_signal_list"): return ""
+
+    var signal_name = get_signal_name_by_line(line_text)
+    if !instance.has_signal(signal_name): return ""
+
+    var signal_parameters = []
+    for signature in instance.get_signal_list():
+        if signature.name != signal_name: continue
+
+        signal_parameters = signature.args
+
+    if signal_parameters.size() == 0:
+        instance.free()
+        return ""
+
+    var signal_parameter_string_parts: Array = []
+    for i: Dictionary in signal_parameters:
+        if i.has("class_name"):
+            signal_parameter_string_parts.push_back("%s: %s" % [i.name, i.class_name])
+        else:
+            signal_parameter_string_parts.push_back(i.name)
+
+    instance.free()
+
+    return ", ".join(signal_parameter_string_parts)
+
+
+func get_signal_name_by_line(line_text: String) -> String:
+    var parts = line_text.split(".connect")
+    if parts.size() == 1: return ""
+
+    parts = parts[0].split(".")
+    if parts.size() == 1: return ""
+
+    return parts[parts.size() - 1]
+
+
+func get_function_return_type(function_name: String, code_edit: CodeEdit):
+    var current_line = get_current_line_text(code_edit).strip_edges()
+
+    if current_line.begins_with(function_name):
+        ## We cannot determine return type if function name is the only information in this line.
+        return ""
+
+    if current_line.contains("="):
+        ## Function is tied to a variable. If this variable was initialized with a return type, we can use it.
+        return find_variable_declaration_return_type(code_edit.get_caret_line(), current_line, code_edit)
+
+    if current_line.contains(".connect"):
+        return "void"
+
+    return ""

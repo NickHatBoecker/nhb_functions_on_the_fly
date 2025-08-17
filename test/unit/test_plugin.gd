@@ -186,7 +186,7 @@ func test_create_get_set_variable_with_value_without_spaces():
     code_edit.free()
 
 
-func test_create_function():
+func test_create_function_without_return_type():
     var utils = NhbFunctionsOnTheFlyUtils.new()
     var code_edit = CodeEdit.new()
     code_edit.set_line(0, "button.pressed.connect(_on_button_pressed)")
@@ -197,8 +197,48 @@ func test_create_function():
     assert_eq(code_edit.get_line_count(), 4)
     assert_eq(code_edit.get_line(0), "button.pressed.connect(_on_button_pressed)")
     assert_eq(code_edit.get_line(1), "")
-    assert_eq(code_edit.get_line(2), "func _on_button_pressed() -> Variant:")
+    assert_eq(code_edit.get_line(2), "func _on_button_pressed() -> void:")
     assert_eq(code_edit.get_line(3), "\treturn")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_create_function_with_return_type_by_variable_at_same_line():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+    code_edit.set_line(0, "var my_text: String = _get_my_text()")
+    code_edit.set_caret_column(25)
+
+    utils.create_function("_get_my_text", code_edit)
+
+    assert_eq(code_edit.get_line_count(), 4)
+    assert_eq(code_edit.get_line(0), "var my_text: String = _get_my_text()")
+    assert_eq(code_edit.get_line(1), "")
+    assert_eq(code_edit.get_line(2), "func _get_my_text() -> String:")
+    assert_eq(code_edit.get_line(3), "\treturn \"\"")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_create_function_with_return_type_by_variable_at_previous_line():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_text: String\n")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    code_edit.set_caret_line(1)
+    code_edit.set_caret_column(15)
+
+    utils.create_function("_get_my_text", code_edit)
+
+    assert_eq(code_edit.get_line_count(), 5)
+    assert_eq(code_edit.get_line(0), "var my_text: String")
+    assert_eq(code_edit.get_line(1), "my_text = _get_my_text()")
+    assert_eq(code_edit.get_line(2), "")
+    assert_eq(code_edit.get_line(3), "func _get_my_text() -> String:")
+    assert_eq(code_edit.get_line(4), "\treturn \"\"")
 
     utils.free()
     code_edit.free()
@@ -215,6 +255,85 @@ func test_get_word_under_cursor():
     code_edit.set_line(0, "button.pressed.connect(_on_button_pressed)")
     code_edit.set_caret_column(30)
     assert_eq(utils.get_word_under_cursor(code_edit), "_on_button_pressed")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_find_variable_declaration_return_type():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_text: String")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "String")
+
+    code_edit.set_line(0, "var my_text: String = \"Hello world\"")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "String")
+
+    code_edit.set_line(0, "var my_text = \"Hello world\"")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "")
+
+    code_edit.set_line(0, "@export var my_text: String")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "String")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_get_return_value_by_return_type():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+
+    assert_eq(utils.get_return_value_by_return_type("String"), "\"\"")
+    assert_eq(utils.get_return_value_by_return_type("int"), "0")
+    assert_eq(utils.get_return_value_by_return_type("float"), "0.0")
+    assert_eq(utils.get_return_value_by_return_type("Vector2"), "Vector2.ZERO")
+    assert_eq(utils.get_return_value_by_return_type("dummy"), "")
+
+    utils.free()
+
+
+func test_get_function_return_type():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_button: Button = _get_my_button()\n")
+    assert_eq(utils.get_function_return_type("_get_my_button", code_edit), "Button")
+
+    code_edit.set_line(0, "var my_text: String = _get_my_string()\n")
+    assert_eq(utils.get_function_return_type("_get_my_string", code_edit), "String")
+
+    code_edit.set_line(0, "var my_text = _get_my_string()\n")
+    assert_eq(utils.get_function_return_type("_get_my_string", code_edit), "")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_get_signal_name_by_line():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+
+    assert_eq(utils.get_signal_name_by_line("my_button.pressed.connect(_on_pressed)"), "pressed")
+    assert_eq(utils.get_signal_name_by_line("my_object.my_button.pressed.connect(_on_pressed)"), "pressed")
+    assert_eq(utils.get_signal_name_by_line("(my_button as Button).pressed.connect(_on_pressed)"), "pressed")
+
+    utils.free()
+
+
+func test_find_signal_declaration_parameters_with_native_signals():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_area: Area2D\n")
+    code_edit.set_line(1, "my_area.body_entered.connect(_on_body_entered)")
+    assert_eq(utils.find_signal_declaration_parameters(1, code_edit.get_line(1), code_edit), "body: Node2D")
+
+    code_edit.set_line(0, "var my_button: Button\n")
+    code_edit.set_line(1, "my_button.pressed.connect(_on_button_pressed)")
+    assert_eq(utils.find_signal_declaration_parameters(1, code_edit.get_line(1), code_edit), "")
 
     utils.free()
     code_edit.free()
