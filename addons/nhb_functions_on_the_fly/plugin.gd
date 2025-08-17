@@ -16,7 +16,13 @@ const GET_SET_SHORTCUT: StringName = "get_set_shortcut"
 const DEFAULT_SHORTCUT_FUNCTION = KEY_BRACKETLEFT
 const DEFAULT_SHORTCUT_GET_SET = KEY_APOSTROPHE
 
-const CALLBACK_CODE_INDEX = 1500
+const FUNCTION_NAME_REGEX = "^[a-zA-Z_][a-zA-Z0-9_]*$"
+
+## Should contain the keyword "var"
+const VARIABLE_NAME_REGEX = "var [a-zA-Z_][a-zA-Z0-9_]*"
+
+const CALLBACK_MENU_PRIORITY = 1500
+enum CALLBACK_TYPES { FUNCTION, VARIABLE }
 enum INDENTATION_TYPES { TABS, SPACES }
 
 var script_editor: ScriptEditor
@@ -89,23 +95,37 @@ func _on_popup_about_to_show():
     if not code_edit:
         return
 
-    var selected_text = code_edit.get_selected_text().strip_edges()
-
-    if selected_text.is_empty():
-        selected_text = _get_word_under_cursor(code_edit)
-
+    var selected_text = _get_selected_text(code_edit)
     if selected_text.is_empty():
         return
 
-    if _should_show_create_function(code_edit, selected_text):
-        current_popup.add_separator()
-        var menu_text = "Create function: " + selected_text
-        current_popup.add_item(menu_text, CALLBACK_CODE_INDEX)
+    var current_line = _get_current_line_text(code_edit)
 
-        if current_popup.is_connected("id_pressed", _on_menu_item_pressed):
-            current_popup.disconnect("id_pressed", _on_menu_item_pressed)
+    ## Because variable regex is more precise, it has to be checked first
+    if _should_show_create_variable(code_edit, current_line):
+        _create_menu_item(
+            "Create get/set variable: " + selected_text,
+            selected_text,
+            code_edit,
+            CALLBACK_TYPES.VARIABLE
+        )
+    elif _should_show_create_function(code_edit, selected_text):
+        _create_menu_item(
+            "Create function: " + selected_text,
+            selected_text,
+            code_edit,
+            CALLBACK_TYPES.FUNCTION
+        )
 
-        current_popup.connect("id_pressed", _on_menu_item_pressed.bind(selected_text, code_edit, CALLBACK_CODE_INDEX))
+
+func _create_menu_item(item_text: String, selected_text: String, code_edit: CodeEdit, callback_type: CALLBACK_TYPES) -> void:
+    current_popup.add_separator()
+    current_popup.add_item(item_text, CALLBACK_MENU_PRIORITY)
+
+    if current_popup.is_connected("id_pressed", _on_menu_item_pressed):
+        current_popup.disconnect("id_pressed", _on_menu_item_pressed)
+
+    current_popup.connect("id_pressed", _on_menu_item_pressed.bind(selected_text, code_edit, CALLBACK_MENU_PRIORITY, callback_type))
 
 
 func _get_word_under_cursor(code_edit: CodeEdit) -> String:
@@ -127,8 +147,9 @@ func _get_word_under_cursor(code_edit: CodeEdit) -> String:
 func _should_show_create_function(code_edit: CodeEdit, text: String) -> bool:
     var script_text = code_edit.text
 
+    ## Check if valid function name
     var regex = RegEx.new()
-    regex.compile("^[a-zA-Z_][a-zA-Z0-9_]*$")
+    regex.compile(FUNCTION_NAME_REGEX)
     if not regex.search(text):
         return false
 
@@ -139,6 +160,22 @@ func _should_show_create_function(code_edit: CodeEdit, text: String) -> bool:
         return false
 
     if _local_variable_exists_in_current_function(code_edit, text):
+        return false
+
+    if _is_in_comment(code_edit, text):
+        return false
+
+    return true
+
+
+## `text` contains the whole line of code.
+func _should_show_create_variable(code_edit: CodeEdit, text: String) -> bool:
+    var script_text = code_edit.text
+
+    ## Check if valid variable name
+    var regex = RegEx.new()
+    regex.compile(VARIABLE_NAME_REGEX)
+    if not regex.search(text):
         return false
 
     if _is_in_comment(code_edit, text):
@@ -240,9 +277,13 @@ func _is_in_comment(code_edit: CodeEdit, selected_text: String) -> bool:
     return false
 
 
-func _on_menu_item_pressed(id: int, original_text: String, code_edit: CodeEdit, target_index: int):
-    if id == target_index:
+func _on_menu_item_pressed(id: int, original_text: String, code_edit: CodeEdit, target_index: int, callback_type: CALLBACK_TYPES) -> void:
+    if id != target_index: return
+
+    if callback_type == CALLBACK_TYPES.FUNCTION:
         _create_function(original_text, code_edit)
+    elif callback_type == CALLBACK_TYPES.VARIABLE:
+        _create_get_set_variable(original_text, code_edit)
 
 
 func _create_function(function_name: String, code_edit: CodeEdit):
@@ -360,3 +401,16 @@ func _get_shortcut_path(parameter: String) -> String:
     var addon_path: String = "/".join(script_path_parts)
 
     return "%s%s" % [addon_path, parameter]
+
+
+func _get_selected_text(_code_edit: CodeEdit) -> String:
+    var selected_text = _code_edit.get_selected_text().strip_edges()
+
+    if selected_text.is_empty():
+        selected_text = _get_word_under_cursor(_code_edit)
+
+    return selected_text
+
+
+func _get_current_line_text(_code_edit: CodeEdit) -> String:
+    return _code_edit.get_line(_code_edit.get_caret_line())
