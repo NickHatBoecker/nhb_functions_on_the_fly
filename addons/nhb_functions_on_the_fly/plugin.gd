@@ -109,9 +109,9 @@ func _on_popup_about_to_show():
     var current_line = utils.get_current_line_text(code_edit)
 
     ## Because variable regex is more precise, it has to be checked first
-    if utils.should_show_create_variable(code_edit, current_line, VARIABLE_NAME_REGEX):
+    if utils.should_show_create_variable(code_edit, current_line, VARIABLE_NAME_REGEX, _get_editor_settings()):
         _create_menu_item(
-            "Create get/set variable: " + selected_text,
+            "Create getter/setter for variable: " + selected_text,
             selected_text,
             code_edit,
             CALLBACK_TYPES.VARIABLE

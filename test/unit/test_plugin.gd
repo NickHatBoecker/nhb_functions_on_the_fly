@@ -351,6 +351,15 @@ func test_find_signal_declaration_parameters_with_custom_signals():
     code_edit.free()
 
 
+func test_is_global_variable():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+
+    assert_true(utils.is_global_variable("var my_button: Button"))
+    assert_false(utils.is_global_variable("\tvar my_button: Button"))
+
+    utils.free()
+
+
 ## Unfortunately it's not possible to get an EditorSettings instance for now.
 ## Uncomment this test as soon as it's possible.
 # func test_get_indentation_character():
