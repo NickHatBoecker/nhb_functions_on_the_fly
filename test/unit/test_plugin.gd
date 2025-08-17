@@ -1,10 +1,6 @@
 extends GutTest
 
 
-func test():
-    assert_true(false)
-
-
 func test_is_in_comment():
     var utils = NhbFunctionsOnTheFlyUtils.new()
     var code_edit:= CodeEdit.new()
