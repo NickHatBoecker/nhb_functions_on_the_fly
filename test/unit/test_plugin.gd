@@ -339,6 +339,18 @@ func test_find_signal_declaration_parameters_with_native_signals():
     code_edit.free()
 
 
+#func test_find_signal_declaration_parameters_with_custom_signals():
+#    var utils = NhbFunctionsOnTheFlyUtils.new()
+#    var code_edit = CodeEdit.new()
+#
+#    code_edit.set_line(0, "var my_custom_class: CustomClassWithSignal\n")
+#    code_edit.set_line(1, "my_custom_class.custom_signal.connect(_on_custom_signal)")
+#    assert_eq(utils.find_signal_declaration_parameters(1, code_edit.get_line(1), code_edit), "text: String, number: int")
+#
+#    utils.free()
+#    code_edit.free()
+
+
 ## Unfortunately it's not possible to get an EditorSettings instance for now.
 ## Uncomment this test as soon as it's possible.
 # func test_get_indentation_character():

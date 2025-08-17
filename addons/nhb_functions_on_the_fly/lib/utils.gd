@@ -249,8 +249,17 @@ func find_signal_declaration_parameters(line_index: int, line_text : String, cod
     var object_name: String = find_variable_declaration_return_type(line_index, line_text, code_edit)
     if !object_name: return ""
 
-    var instance = ClassDB.instantiate(object_name)
-    if !instance or !instance.has_method("get_signal_list"): return ""
+    var instance: Variant
+    if type_exists(object_name):
+        instance = ClassDB.instantiate(object_name)
+
+    if !instance or !instance.has_method("get_signal_list"):
+        var class_finder = NhbFunctionsOnTheFlyClassFinder.new()
+        var script_path: String = class_finder.find_class_path(object_name)
+        class_finder.free()
+        if !script_path: return ""
+
+        instance = load(script_path).new()
 
     var signal_name = get_signal_name_by_line(line_text)
     if !instance.has_signal(signal_name): return ""
@@ -267,10 +276,12 @@ func find_signal_declaration_parameters(line_index: int, line_text : String, cod
 
     var signal_parameter_string_parts: Array = []
     for i: Dictionary in signal_parameters:
-        if i.has("class_name"):
-            signal_parameter_string_parts.push_back("%s: %s" % [i.name, i.class_name])
-        else:
+        if !i.has("class_name"):
             signal_parameter_string_parts.push_back(i.name)
+        elif !i.class_name.is_empty():
+            signal_parameter_string_parts.push_back("%s: %s" % [i.name, i.class_name])
+        elif i.class_name.is_empty() and i.has("type"):
+            signal_parameter_string_parts.push_back("%s: %s" % [i.name, type_string(i.type)])
 
     instance.free()
 
