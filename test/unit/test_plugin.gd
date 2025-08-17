@@ -1,6 +1,10 @@
 extends GutTest
 
 
+func test():
+    assert_true(false)
+
+
 func test_is_in_comment():
     var utils = NhbFunctionsOnTheFlyUtils.new()
     var code_edit:= CodeEdit.new()
@@ -14,6 +18,9 @@ func test_is_in_comment():
 
     code_edit.set_line(0, "var button3")
     assert_false(utils.is_in_comment(code_edit, "var button3"))
+
+    utils.free()
+    code_edit.free()
 
 
 func test_should_show_create_variable():
@@ -45,6 +52,9 @@ func test_should_show_create_variable():
         code_edit.set_line(0, line)
         assert_false(utils.should_show_create_variable(code_edit, line, variable_name_regex))
 
+    utils.free()
+    code_edit.free()
+
 
 func test_get_variable_return_type():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -61,6 +71,8 @@ func test_get_variable_return_type():
     for check in checks:
         assert_eq(utils.get_variable_return_type(check.line, variable_return_type_regex), check.expectedReturnType)
 
+    utils.free()
+
 
 func test_get_current_line_text():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -72,10 +84,15 @@ func test_get_current_line_text():
     code_edit.set_line(0, "Second line")
     assert_eq(utils.get_current_line_text(code_edit), "Second line")
 
+    utils.free()
+    code_edit.free()
+
 
 func test_get_shortcut_path():
     var utils = NhbFunctionsOnTheFlyUtils.new()
     assert_eq(utils.get_shortcut_path("id"), "res://addons/nhb_functions_on_the_fly/id")
+
+    utils.free()
 
 
 func test_create_get_set_variable_only_variable_name():
@@ -93,6 +110,9 @@ func test_create_get_set_variable_only_variable_name():
     assert_eq(code_edit.get_line(3), "\tset(value):")
     assert_eq(code_edit.get_line(4), "\t\tbutton = value")
 
+    utils.free()
+    code_edit.free()
+
 
 func test_create_get_set_variable_with_return_type():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -108,6 +128,9 @@ func test_create_get_set_variable_with_return_type():
     assert_eq(code_edit.get_line(2), "\t\treturn button")
     assert_eq(code_edit.get_line(3), "\tset(value):")
     assert_eq(code_edit.get_line(4), "\t\tbutton = value")
+
+    utils.free()
+    code_edit.free()
 
 
 func test_create_get_set_variable_with_return_type_and_value():
@@ -125,6 +148,9 @@ func test_create_get_set_variable_with_return_type_and_value():
     assert_eq(code_edit.get_line(3), "\tset(value):")
     assert_eq(code_edit.get_line(4), "\t\ttext = value")
 
+    utils.free()
+    code_edit.free()
+
 
 func test_create_get_set_variable_with_value():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -140,6 +166,9 @@ func test_create_get_set_variable_with_value():
     assert_eq(code_edit.get_line(2), "\t\treturn text")
     assert_eq(code_edit.get_line(3), "\tset(value):")
     assert_eq(code_edit.get_line(4), "\t\ttext = value")
+
+    utils.free()
+    code_edit.free()
 
 
 func test_create_get_set_variable_with_value_without_spaces():
@@ -157,6 +186,9 @@ func test_create_get_set_variable_with_value_without_spaces():
     assert_eq(code_edit.get_line(3), "\tset(value):")
     assert_eq(code_edit.get_line(4), "\t\ttext = value")
 
+    utils.free()
+    code_edit.free()
+
 
 func test_create_function():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -172,6 +204,9 @@ func test_create_function():
     assert_eq(code_edit.get_line(2), "func _on_button_pressed() -> Variant:")
     assert_eq(code_edit.get_line(3), "\treturn")
 
+    utils.free()
+    code_edit.free()
+
 
 func test_get_word_under_cursor():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -184,6 +219,9 @@ func test_get_word_under_cursor():
     code_edit.set_line(0, "button.pressed.connect(_on_button_pressed)")
     code_edit.set_caret_column(30)
     assert_eq(utils.get_word_under_cursor(code_edit), "_on_button_pressed")
+
+    utils.free()
+    code_edit.free()
 
 
 ## Unfortunately it's not possible to get an EditorSettings instance for now.
