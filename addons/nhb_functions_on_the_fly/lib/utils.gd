@@ -26,7 +26,7 @@ func is_in_comment(code_edit: CodeEdit, selected_text: String) -> bool:
 ## - and text is not a comment line
 ##
 ## @param `text` contains the whole line of code.
-func should_show_create_variable(code_edit: CodeEdit, text: String, variable_name_regex: String, settings: EditorSettings = null) -> bool:
+func should_show_create_variable(code_edit: CodeEdit, text: String, variable_name_regex: String, settings) -> bool:
     ## Check if valid variable name
     var regex = RegEx.new()
     regex.compile(variable_name_regex)
@@ -67,12 +67,7 @@ func get_shortcut_path(parameter: String) -> String:
 ## Get accumulated indentation string.
 ## Will return "\t" if tabs are used for indentation.
 ## Will return " " * indent/size if spaces are used for indentation.
-func get_indentation_character(settings: EditorSettings = null) -> String:
-    if !settings:
-        ## GUT unit test context
-        ## @TODO Remove this as soon as it's possible to stub EditorSettings.
-        return "\t"
-
+func get_indentation_character(settings) -> String:
     var indentation_type = settings.get_setting("text_editor/behavior/indent/type")
     var indentation_character: String = "\t"
 
@@ -83,11 +78,11 @@ func get_indentation_character(settings: EditorSettings = null) -> String:
     return indentation_character
 
 
-func create_get_set_variable(variable_name: String, code_edit: CodeEdit, variable_return_type_regex: String, settings: EditorSettings = null) -> void:
+func create_get_set_variable(variable_name: String, code_edit: CodeEdit, variable_return_type_regex: String, settings) -> void:
     var current_line : int = code_edit.get_caret_line()
     var line_text : String = code_edit.get_line(current_line)
 
-    if !is_global_variable(line_text): return
+    if !is_global_variable(line_text, settings): return
 
     var end_column : int = line_text.length()
     var indentation_character: String = get_indentation_character(settings)
@@ -114,7 +109,7 @@ func create_get_set_variable(variable_name: String, code_edit: CodeEdit, variabl
     code_edit.insert_text(code_text, current_line, end_column)
 
 
-func create_function(function_name: String, code_edit: CodeEdit, settings: EditorSettings = null):
+func create_function(function_name: String, code_edit: CodeEdit, settings):
     var current_line : int = code_edit.get_caret_line()
     var line_text : String = code_edit.get_line(current_line)
 
@@ -320,7 +315,7 @@ func get_function_return_type(function_name: String, code_edit: CodeEdit):
 
 
 ## Lines with global variables do not start with whitespace.
-func is_global_variable(text: String, settings: EditorSettings = null) -> bool:
+func is_global_variable(text: String, settings) -> bool:
     var indentation_character: String = get_indentation_character(settings)
 
     var regex = RegEx.new()
