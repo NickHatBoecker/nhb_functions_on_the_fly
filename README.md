@@ -1,6 +1,6 @@
 # NHB Functions On The Fly for Godot 4.4+
 
-<img src="https://img.shields.io/badge/Godot-478CBF?style=for-the-badge&logo=GodotEngine&logoColor=white" alt="Powered by Godot"> <a href="https://github.com/NickHatBoecker/nhb_functions_on_the_fly/issues"><img src="https://img.shields.io/badge/Report_Issue-000000?style=for-the-badge&logo=github&logoColor=white" alt="Report Issue"></a> <a href="https://ko-fi.com/nickhatboecker" target="_blank">
+<img src="https://img.shields.io/badge/Godot-478CBF?style=for-the-badge&logo=GodotEngine&logoColor=white" alt="Powered by Godot"> <a href="https://github.com/NickHatBoecker/nhb_functions_on_the_fly/issues/new"><img src="https://img.shields.io/badge/Report_Issue-000000?style=for-the-badge&logo=github&logoColor=white" alt="Report Issue"></a> <a href="https://ko-fi.com/nickhatboecker" target="_blank">
 <img src="https://img.shields.io/badge/Support_Development_on_Ko--fi-f15f61?style=for-the-badge&logo=kofi&logoColor=white" alt="Support me on Ko-fi">
 </a>
 
