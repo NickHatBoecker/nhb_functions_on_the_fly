@@ -126,6 +126,8 @@ func create_function(function_name: String, code_edit: CodeEdit, settings):
         return_value_string = ""
 
     var function_parameters = find_signal_declaration_parameters(code_edit.get_caret_line(), line_text, code_edit)
+    if !function_parameters:
+        function_parameters = find_function_parameters(function_name, code_edit.get_caret_line(), line_text, code_edit)
 
     var indentation_character: String = get_indentation_character(settings)
     var new_function = "\n\nfunc %s(%s)%s:\n%sreturn%s" % [
@@ -209,9 +211,7 @@ func trim_char(text: String, char: String) -> String:
     return text.substr(start, end - start)
 
 
-## Find declaration of given line_text variable.
-## @example line_text - my_text = _get_my_text()
-func find_variable_declaration_return_type(line_index: int, line_text : String, code_edit: CodeEdit) -> String:
+func get_variable_from_line(line_index: int, line_text : String, code_edit: CodeEdit) -> String:
     var parts = line_text.split("=")
     if parts.size() < 2:
         parts = line_text.split(".")
@@ -225,17 +225,21 @@ func find_variable_declaration_return_type(line_index: int, line_text : String, 
     if name_token == "":
         return ""
 
-    ## Check for variable declaration in current line and all lines above.
+    return name_token
+
+
+## Check for variable declaration in current line and all lines above.
+func find_variable_declaration_return_type(variable_name: String, line_index: int, line_text : String, code_edit: CodeEdit) -> String:
     for i in range(line_index, -1, -1):
         var prev_line = code_edit.get_line(i).strip_edges()
 
         if !prev_line.begins_with("var") and !prev_line.begins_with("@onready") and !prev_line.begins_with("@export"):
             continue
 
-        if name_token not in prev_line:
+        if variable_name not in prev_line:
             continue
 
-        var rest = prev_line.split(name_token)[1].strip_edges()
+        var rest = prev_line.split(variable_name)[1].strip_edges()
         if rest.begins_with(":"):
             var type_part = rest.split("=")
             type_part = type_part[0].split(":")[1]
@@ -245,7 +249,8 @@ func find_variable_declaration_return_type(line_index: int, line_text : String, 
 
 
 func find_signal_declaration_parameters(line_index: int, line_text : String, code_edit: CodeEdit) -> String:
-    var object_name: String = find_variable_declaration_return_type(line_index, line_text, code_edit)
+    var variable_name: String = get_variable_from_line(line_index, line_text, code_edit)
+    var object_name: String = find_variable_declaration_return_type(variable_name, line_index, line_text, code_edit)
     if !object_name: return ""
 
     var instance: Variant
@@ -287,6 +292,26 @@ func find_signal_declaration_parameters(line_index: int, line_text : String, cod
     return ", ".join(signal_parameter_string_parts)
 
 
+func find_function_parameters(function_name: String, line_index: int, line_text : String, code_edit: CodeEdit) -> String:
+    var regex = RegEx.new()
+    regex.compile(function_name + "(\\(.*\\))")
+
+    var result = regex.search(line_text)
+    if not result:
+        return ""
+
+    var arguments = result.get_string(1).lstrip("(").rstrip(")").split(",", false)
+    var argumentString: String
+
+    for i in arguments.size():
+        arguments[i] = arguments[i].strip_edges()
+        var argumentType = find_variable_declaration_return_type(arguments[i], line_index, line_text, code_edit)
+        if argumentType:
+            arguments[i] = "%s: %s" % [arguments[i], argumentType]
+
+    return ", ".join(arguments)
+
+
 func get_signal_name_by_line(line_text: String) -> String:
     var parts = line_text.split(".connect")
     if parts.size() == 1: return ""
@@ -306,7 +331,8 @@ func get_function_return_type(function_name: String, code_edit: CodeEdit):
 
     if current_line.contains("="):
         ## Function is tied to a variable. If this variable was initialized with a return type, we can use it.
-        return find_variable_declaration_return_type(code_edit.get_caret_line(), current_line, code_edit)
+        var variable_name: String = get_variable_from_line(code_edit.get_caret_line(), current_line, code_edit)
+        return find_variable_declaration_return_type(variable_name, code_edit.get_caret_line(), current_line, code_edit)
 
     if current_line.contains(".connect"):
         return "void"

@@ -134,6 +134,30 @@ func test_get_word_under_cursor():
     code_edit.free()
 
 
+func test_get_variable_from_line():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_text: String")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.get_variable_from_line(1, "my_text = _get_my_text()", code_edit), "my_text")
+
+    code_edit.set_line(0, "var my_text: String = \"Hello world\"")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.get_variable_from_line(1, "my_text = _get_my_text()", code_edit), "my_text")
+
+    code_edit.set_line(0, "var my_text = \"Hello world\"")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.get_variable_from_line( 1, "my_text = _get_my_text()", code_edit), "my_text")
+
+    code_edit.set_line(0, "@export var my_text: String")
+    code_edit.set_line(1, "my_text = _get_my_text()")
+    assert_eq(utils.get_variable_from_line(1, "my_text = _get_my_text()", code_edit), "my_text")
+
+    utils.free()
+    code_edit.free()
+
+
 #region Create getter/setter variable
 func test_create_get_set_variable_only_variable_name():
     var utils = NhbFunctionsOnTheFlyUtils.new()
@@ -355,6 +379,71 @@ func test_create_function_with_return_type_by_variable_at_previous_line():
 
     utils.free()
     code_edit.free()
+
+
+func test_create_function_without_arguments():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "_do_something()")
+    code_edit.set_caret_column(5)
+
+    utils.create_function("_do_something", code_edit, MockEditorSettings.get_default())
+
+    assert_eq(code_edit.get_line_count(), 4)
+    assert_eq(code_edit.get_line(0), "_do_something()")
+    assert_eq(code_edit.get_line(1), "")
+    assert_eq(code_edit.get_line(2), "func _do_something():")
+    assert_eq(code_edit.get_line(3), "\treturn")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_create_function_with_single_arguments():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_text: String = \"Hello world\"\n")
+    code_edit.set_line(1, "_do_something(my_text)")
+    code_edit.set_caret_line(1)
+    code_edit.set_caret_column(5)
+
+    utils.create_function("_do_something", code_edit, MockEditorSettings.get_default())
+
+    assert_eq(code_edit.get_line_count(), 5)
+    assert_eq(code_edit.get_line(0), "var my_text: String = \"Hello world\"")
+    assert_eq(code_edit.get_line(1), "_do_something(my_text)")
+    assert_eq(code_edit.get_line(2), "")
+    assert_eq(code_edit.get_line(3), "func _do_something(my_text: String):")
+    assert_eq(code_edit.get_line(4), "\treturn")
+
+    utils.free()
+    code_edit.free()
+
+
+func test_create_function_with_multiple_arguments():
+    var utils = NhbFunctionsOnTheFlyUtils.new()
+    var code_edit = CodeEdit.new()
+
+    code_edit.set_line(0, "var my_text: String = \"Hello world\"\n")
+    code_edit.set_line(1, "var some_button: Button\n")
+    code_edit.set_line(2, "_do_something(my_text, some_button)")
+    code_edit.set_caret_line(2)
+    code_edit.set_caret_column(5)
+
+    utils.create_function("_do_something", code_edit, MockEditorSettings.get_default())
+
+    assert_eq(code_edit.get_line_count(), 6)
+    assert_eq(code_edit.get_line(0), "var my_text: String = \"Hello world\"")
+    assert_eq(code_edit.get_line(1), "var some_button: Button")
+    assert_eq(code_edit.get_line(2), "_do_something(my_text, some_button)")
+    assert_eq(code_edit.get_line(3), "")
+    assert_eq(code_edit.get_line(4), "func _do_something(my_text: String, some_button: Button):")
+    assert_eq(code_edit.get_line(5), "\treturn")
+
+    utils.free()
+    code_edit.free()
 #endregion
 
 
@@ -383,19 +472,19 @@ func test_find_variable_declaration_return_type():
 
     code_edit.set_line(0, "var my_text: String")
     code_edit.set_line(1, "my_text = _get_my_text()")
-    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "String")
+    assert_eq(utils.find_variable_declaration_return_type("my_text", 1, "my_text = _get_my_text()", code_edit), "String")
 
     code_edit.set_line(0, "var my_text: String = \"Hello world\"")
     code_edit.set_line(1, "my_text = _get_my_text()")
-    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "String")
+    assert_eq(utils.find_variable_declaration_return_type("my_text", 1, "my_text = _get_my_text()", code_edit), "String")
 
     code_edit.set_line(0, "var my_text = \"Hello world\"")
     code_edit.set_line(1, "my_text = _get_my_text()")
-    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "")
+    assert_eq(utils.find_variable_declaration_return_type("my_text", 1, "my_text = _get_my_text()", code_edit), "")
 
     code_edit.set_line(0, "@export var my_text: String")
     code_edit.set_line(1, "my_text = _get_my_text()")
-    assert_eq(utils.find_variable_declaration_return_type(1, "my_text = _get_my_text()", code_edit), "String")
+    assert_eq(utils.find_variable_declaration_return_type("my_text", 1, "my_text = _get_my_text()", code_edit), "String")
 
     utils.free()
     code_edit.free()
