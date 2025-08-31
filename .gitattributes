@@ -5,7 +5,3 @@
 /**        export-ignore
 /addons    !export-ignore
 /addons/nhb_functions_on_the_fly/** !export-ignore
-
-# Keep essential files in export
-/LICENSE.md !export-ignore
-/README.md !export-ignore
