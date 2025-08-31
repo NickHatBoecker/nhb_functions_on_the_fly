@@ -4,7 +4,7 @@
 # Only include the addons folder when downloading from the Asset Library.
 /**        export-ignore
 /addons    !export-ignore
-/addons/nhb_functions_on_the_fly/** export-ignore
+/addons/nhb_functions_on_the_fly/** !export-ignore
 
 # Keep essential files in export
 /LICENSE.md !export-ignore
