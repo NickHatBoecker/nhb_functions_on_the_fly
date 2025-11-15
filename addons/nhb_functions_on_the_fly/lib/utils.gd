@@ -61,7 +61,7 @@ func get_current_line_text(_code_edit: CodeEdit) -> String:
 
 
 func get_shortcut_path(parameter: String) -> String:
-    return "res://addons/nhb_functions_on_the_fly/%s" % parameter
+    return "plugin/nhb_functions_on_the_fly/%s" % parameter
 
 
 ## Get accumulated indentation string.
